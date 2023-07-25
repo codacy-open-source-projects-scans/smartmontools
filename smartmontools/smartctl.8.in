@@ -13,7 +13,8 @@ $Id$
 .if n .sp
 ..
 .de Vb \" Begin verbatim text
-.ft CW
+.if t .ft CW
+.if n .ft R
 .nf
 .ne \\$1
 ..
@@ -178,6 +179,10 @@ Both forms require a NVMe driver which supports NVME_PASS_THROUGH_IOCTL.
 .Sp
 Use the forms \fB"/dev/sd[...]"\fP or \fB"/dev/pd[...]"\fP (see above)
 for NVMe devices behind Windows 10 NVMe driver (stornvme.sys).
+The pass-through functionality of this driver does not require admin rights
+to retrieve device information (\*(Aq\-x\*(Aq option).
+Admin rights are required if the device state is changed
+(\*(Aq\-t TEST\*(Aq option).
 .Sp
 The prefix \fB"/dev/"\fP is optional.
 .\" %ENDIF OS Windows Cygwin
@@ -248,43 +253,45 @@ shortest output and \*(Aq\-\-identify=wb\*(Aq (all words, all bits) produces
 the longest output.
 .TP
 .B \-a, \-\-all
-Prints all SMART information about the disk.
-For ATA devices this is equivalent
-to
+Prints all SMART information about the device.
+.Sp
+For ATA, this is equivalent to
 .br
-\*(Aq\-H \-i \-c \-A \-l error \-l selftest \-l selective\*(Aq
+\*(Aq\-H \-i \-c \-A \-l error \-l selftest \-l selective\*(Aq.
 .br
-and for SCSI, this is equivalent to
+This option is no longer recommended for ATA disks because it does not enable
+the SMART options which require support for 48-bit ATA commands
+(see \*(Aq-x\*(Aq below).
+.Sp
+For SCSI, this is equivalent to
 .br
 \*(Aq\-H \-i \-A \-l error \-l selftest\*(Aq.
-.br
 .\" %IF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
+.Sp
 For NVMe, this is equivalent to
 .br
 \*(Aq\-H \-i \-c \-A \-l error \-l selftest\*(Aq.
-.br
 .\" %ENDIF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
-Note that for ATA disks this does \fBnot\fP enable the non-SMART options
-and the SMART options which require support for 48-bit ATA commands.
 .TP
 .B \-x, \-\-xall
 Prints all SMART and non-SMART information about the device.
-For ATA devices this is equivalent to
+.Sp
+For ATA, this is equivalent to
 .br
 \*(Aq\-H \-i \-g all \-g wcreorder \-c \-A \-f brief \-l xerror,error
 \-l xselftest,selftest \-l selective \-l directory \-l scttemp \-l scterc
 \-l devstat \-l defects \-l sataphy\*(Aq.
 .br
-and for SCSI disks, this is equivalent to
+If \*(Aq\-a\*(Aq is also specified, add \*(Aq\-l error \-l selftest\*(Aq.
+.Sp
+For SCSI disks, this is equivalent to
 .br
 \*(Aq\-H \-i \-g all \-A \-l error \-l selftest \-l background \-l sasphy
-\-l defects \-l envrep \-l genstats \-l ssd \-l zdevstat\*(Aq.
+\-l defects \-l envrep \-l genstats \-l ssd \-l zdevstat\*(Aq
 .br
-and for SCSI zoned disks, add \-l zdevstat
-.br
-and for SCSI tape drivers and changers, add \-l tapedevstat
-.br
+and for SCSI tape drives and changers, add \*(Aq\-l tapedevstat\*(Aq.
 .\" %IF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
+.Sp
 For NVMe, this is equivalent to
 .br
 \*(Aq\-H \-i \-c \-A \-l error \-l selftest\*(Aq.
@@ -387,7 +394,7 @@ The related fields are also invalidated in the ATA and NVMe debug outputs.
 .br
 Note: This is not the case in SCSI debug output.
 .br
-[NEW EXPERIMENTAL SMARTCTL FEATURE]
+[NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
 The Namespace IEEE EUI-64 (NVMe) is also suppressed.
 .TP
 .B \-d TYPE, \-\-device=TYPE
@@ -440,11 +447,14 @@ is only used if the SCSI INQUIRY data reports a SATL (VENDOR: "ATA     ").
 Otherwise device type SCSI (for SCSI/SAS disks) is used.
 .Sp
 .I usbasm1352r,PORT
-\- [NEW EXPERIMENTAL SMARTCTL FEATURE]
+\- [NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
 this device type is for one or two SATA disks that are behind an ASMedia
 ASM1352R USB to SATA (RAID) bridge.
 The parameter PORT (0 or 1) selects the disk to monitor.
-Note: \*(Aq\-d sat\*(Aq also works for the first disk.
+.br
+Note: This USB bridge also supports \*(Aq\-d sat\*(Aq.
+This monitors either the first disk or the second disk if no disk is
+connected to the first port.
 .Sp
 .I usbcypress
 \- this device type is for ATA disks that are behind a Cypress USB to PATA
@@ -460,11 +470,12 @@ The 48-bit ATA commands (required e.g.\& for \*(Aq\-l xerror\*(Aq, see below)
 do not work with all of these bridges and are therefore disabled by default.
 These commands can be enabled by \*(Aq\-d usbjmicron,x\*(Aq.
 If two disks are connected to a bridge with two ports, an error message is
-printed if no PORT is specified.
-The port can be specified by \*(Aq\-d usbjmicron[,x],PORT\*(Aq where PORT is 0
-(master) or 1 (slave).  This is not necessary if the device uses a port
-multiplier to connect multiple disks to one port.  The disks appear under
-separate /dev/ice names then.
+printed if no PORT (0 or 1) is specified.
+.br
+The PORT parameter is not necessary if the device uses a port multiplier to
+connect multiple disks to one port.
+The disks appear under separate /dev/ice names then.
+.br
 CAUTION: Specifying \*(Aq,x\*(Aq for a device which does not support it results
 in I/O errors and may disconnect the drive.  The same applies if the specified
 PORT does not exist or is not connected to a disk.
@@ -484,7 +495,7 @@ PL2571/2771/2773/2775 USB to SATA bridge.
 bridge.
 .Sp
 .I sntasmedia
-\- [NEW EXPERIMENTAL SMARTCTL FEATURE]
+\- [NEW EXPERIMENTAL SMARTCTL 7.3 FEATURE]
 this device type is for NVMe disks that are behind an ASMedia USB to NVMe
 bridge.
 .Sp
@@ -522,7 +533,6 @@ FreeBSD:
 \fBsmartctl \-a \-d megaraid,2 /dev/mfi0\fP
 .br
 \fBsmartctl \-a \-d megaraid,0 /dev/mrsas0\fP
-.br
 .Sp
 .\" %ENDIF OS FreeBSD
 .\" %IF OS ALL
@@ -722,12 +732,11 @@ under FreeBSD, it is the character device which the driver registered (eg,
 .Sp
 .\" %IF OS Linux
 .I sssraid,E,S
-\- [Linux only]
-[NEW EXPERIMENTAL SMARTCTL FEATURE]
+\- [Linux only: NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
 the device consists of one or more SCSI/SAS or SATA disks connected to a
 SSSRAID controller.
 The non-negative integer E (in the range of 0 to 8) denotes the enclosure
-and S(range 0 to 128) denotes the slot.
+and S (range 0 to 128) denotes the slot.
 Use syntax such as:
 .br
 \fBsmartctl \-a \-d sssraid,0,1 /dev/bsg/sssraid0\fP
@@ -913,7 +922,7 @@ not what you want.
 The \*(Aq\-n\*(Aq option is ignored if the power mode check is not supported
 or returns an unknown value.
 .br
-[ATA only][NEW EXPERIMENTAL SMARTCTL FEATURE]
+[ATA only: NEW EXPERIMENTAL SMARTCTL 7.3 FEATURE]
 If the optional STATUS2 parameter is specified, \fBsmartctl\fP exits
 immediately with STATUS2 in this case.
 For example use \*(Aq\-n standby,3,5\*(Aq to return unique exit statuses in
@@ -935,8 +944,8 @@ Enables or disables SMART on device.  The valid arguments to
 this option are \fIon\fP and \fIoff\fP.
 .Sp
 [ATA]
-Note that the ATA commands SMART ENABLE/DISABLE OPERATIONS were declared obsolete
-in ATA ACS-4 Revision 10 (Nov 2015).
+Note that the ATA commands SMART ENABLE/DISABLE OPERATIONS were declared
+obsolete in ATA ACS-4 Revision 10 (Nov 2015).
 .Sp
 [SCSI tape drive or changer]
 It is not necessary (or useful) to enable SMART to see the TapeAlert messages.
@@ -1151,16 +1160,12 @@ The dsn is usually disabled by default.
 .B \-H, \-\-health
 Prints the health status of the device.
 .Sp
-[SCSI tape drive or changer] For SCSI tape drives the TapeAlert log page is
-not checked for pending alerts unless this option is given twice (see
-\fBTAPE DRIVES\fP for the rationale).
-.Sp
 If the device reports failing health status, this means
 .B either
 that the device has already failed,
 .B or
-that it is predicting its own failure within the next 24 hours.  If
-this happens, use the \*(Aq\-a\*(Aq option to get more information, and
+that it is predicting its own failure within the next 24 hours.
+If this happens, use the \*(Aq\-x\*(Aq option to get more information, and
 .B get your data off the disk and to someplace safe as soon as you can.
 .Sp
 [ATA] Health status is obtained by checking the (boolean) result returned
@@ -1176,8 +1181,9 @@ Prefailure SMART Attribute value is less than or equal to its threshold
 (ASC) and Additional Sense Code Qualifier (ASCQ) from Informal Exceptions
 (IE) log page (if supported) and/or from SCSI sense data.
 .Sp
-[SCSI tape drive or changer] TapeAlert status is obtained by reading the
-TapeAlert log page only when this option is given twice.
+[SCSI tape drive or changer] The TapeAlert status is obtained by reading the
+TapeAlert log page, but only if this option is given twice (see
+\fBTAPE DRIVES\fP for the rationale).
 .\" %IF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .Sp
 [NVMe] NVMe status is obtained by reading the "Critical Warning" byte from
@@ -1409,6 +1415,10 @@ This number can be changed by the optional parameter NUM.
 The maximum number of log entries is vendor specific
 (in the range from 1 to 256 inclusive).
 .Sp
+Note that the contents of this log is not preserved across power cycles or
+controller resets, but the value of \*(AqError Information Log Entries\*(Aq
+from SMART/Health Information log is.
+.Sp
 .\" %ENDIF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .I xerror[,NUM][,error]
 \- [ATA only] prints the Extended Comprehensive SMART error log
@@ -1465,7 +1475,8 @@ test terminology).
 .\" %IF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .Sp
 .I selftest
-\- [NVMe] prints the NVMe self-test log.
+\- [NVMe: NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
+prints the NVMe self-test log.
 .\" %ENDIF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .Sp
 .I xselftest[,NUM][,selftest]
@@ -1555,7 +1566,7 @@ Values of 0 disable the feature, other values less than 65 are probably not
 supported.
 For RAID configurations, this is typically set to 70,70 deciseconds.
 .br
-[NEW EXPERIMENTAL SMARTCTL FEATURE]
+[NEW EXPERIMENTAL SMARTCTL 7.3 FEATURE]
 If \*(Aqscterc,READTIME,WRITETIME,p\*(Aq is specified, these time values
 will be persistent over a power-on reset.
 If \*(Aqscterc,p\*(Aq is specified, the persistent over power-on values
@@ -1581,20 +1592,20 @@ The size of the log and the order of the entries are vendor specific.
 The Pending Defects log was introduced in ACS-4 Revision 01 (Mar 2014).
 .Sp
 .I defects
-\- [SCSI: NEW EXPERIMENTAL SMARTCTL FEATURE] prints LBAs that the background
+\- [SCSI: NEW EXPERIMENTAL SMARTCTL 7.3 FEATURE] prints LBAs that the background
 scan was unable to read (i.e. a defect). Entries, if any, show the defective
 LBA and the value of the power\-on hours (since manufacture) when the background
 scan found the defect. Note these pending defects may appear in advance of any
 application trying to read a defective LBA.
 .Sp
 .I envrep
-\- [SCSI only: NEW EXPERIMENTAL SMARTCTL FEATURE]
+\- [SCSI only: NEW EXPERIMENTAL SMARTCTL 7.3 FEATURE]
 prints values and descriptions of the SCSI Environmental reporting log
 page. This includes one or more temperatures and may include relative
 humidities. Lifetime maximums and minimums are also reported.
 .Sp
 .I genstats
-\- [SCSI only: NEW EXPERIMENTAL SMARTCTL FEATURE]
+\- [SCSI only: NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
 prints values and descriptions of the SCSI General statistics and performance
 log page.
 .Sp
@@ -1610,17 +1621,17 @@ drives.
 Protocol Specific log page (log page 0x18).  If \*(Aq\-l sasphy,reset\*(Aq
 is specified, all counters are reset after reading the values.
 .Sp
-.I tapealert 
-\- [SCSI tape drives and changers: NEW EXPERIMENTAL SMARTCTL FEATURE]
+.I tapealert
+\- [SCSI tape drives and changers: NEW EXPERIMENTAL SMARTCTL 7.3 FEATURE]
 prints values and descriptions of the (SSC) Tape Alert log page. See
 \fBTAPE DRIVES\fP below for issue associated with printing this log page.
 .Sp
 .I tapedevstat
-\- [SCSI tape drives and changers: NEW EXPERIMENTAL SMARTCTL FEATURE]
+\- [SCSI tape drives and changers: NEW EXPERIMENTAL SMARTCTL 7.3 FEATURE]
 prints values and descriptions of the (SSC) Device Statistics log page.
 .Sp
 .I zdevstat
-\- [SCSI zoned disks: NEW EXPERIMENTAL SMARTCTL FEATURE]
+\- [SCSI zoned disks: NEW EXPERIMENTAL SMARTCTL 7.3 FEATURE]
 prints values and descriptions of the Zoned Block Device Statistics log
 page (ZBC\-2).
 .Sp
@@ -1674,11 +1685,12 @@ manufacturer.
 The value may reach 255.
 .Sp
 .I farm
-\- [Seagate ATA or SAS (SCSI) only][NEW EXPERIMENTAL SMARTCTL FEATURE]
-prints predictive drive health metrics
-and values from Seagate's vendor-specific Field Access Reliability Metrics
-(FARM) log when used on a drive supporting FARM. ATA and SAS logs differ
-slightly. \fBWARNING: Some Seagate drives do not support FARM.\fP
+\- [Seagate ATA or SAS (SCSI) only: NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
+prints predictive drive health metrics and values from Seagate's
+vendor-specific Field Access Reliability Metrics (FARM) log when used
+on a drive supporting FARM.
+ATA and SAS logs differ slightly.
+\fBWARNING: Some Seagate drives do not support FARM.\fP
 .TP
 .B \-v ID,FORMAT[:BYTEORDER][,NAME], \-\-vendorattribute=ID,FORMAT...
 [ATA only] Sets a vendor-specific raw value print FORMAT, an optional
@@ -1990,7 +2002,7 @@ Optional entries are read from the file
 (Windows: \fBEXEDIR/drivedb-add.h\fP)
 .\" %ENDIF OS ALL
 .\" %IF OS Windows
-.\"! \fBEXEDIR/drivedb-add.h\fP.
+.\"! \fBEXEDIR/drivedb-add.h\fP
 .\" %ENDIF OS Windows
 .\" %IF ENABLE_DRIVEDB
 if this option is not specified.
@@ -2121,7 +2133,8 @@ with other disks use the \*(Aq\-c\*(Aq option to monitor progress.
 .\" %IF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .Sp
 .I short
-\- [NVMe] runs the "Short" self-test for current namespace.
+\- [NVMe: NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
+runs the "Short" self-test for current namespace.
 .\" %ENDIF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .Sp
 .I long
@@ -2136,7 +2149,8 @@ below).
 .\" %IF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .Sp
 .I long
-\- [NVMe] runs the "Extended" self-test for current namespace.
+\- [NVMe: NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
+runs the "Extended" self-test for current namespace.
 .\" %ENDIF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .Sp
 .I conveyance

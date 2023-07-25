@@ -3737,6 +3737,8 @@ static int ATACheckDevice(const dev_config & cfg, dev_state & state, ata_device 
 
       // Save the new values for the next time around
       state.smartval = curval;
+      state.update_persistent_state();
+      state.attrlog_dirty = true;
     }
   }
   state.offline_started = state.selftest_started = false;
@@ -3787,11 +3789,6 @@ static int ATACheckDevice(const dev_config & cfg, dev_state & state, ata_device 
   // Don't leave device open -- the OS/user may want to access it
   // before the next smartd cycle!
   CloseDevice(atadev, name);
-
-  // Copy ATA attribute values to persistent state
-  state.update_persistent_state();
-
-  state.attrlog_dirty = true;
   return 0;
 }
 
@@ -5331,7 +5328,7 @@ static int parse_options(int argc, char **argv)
     case 'V':
       // print version and CVS info
       debugmode = 1;
-      PrintOut(LOG_INFO, "%s", format_version_info("smartd", true /*full*/).c_str());
+      PrintOut(LOG_INFO, "%s", format_version_info("smartd", 3 /*full*/).c_str());
       return 0;
 #ifdef HAVE_LIBCAP_NG
     case 'C':
@@ -5452,8 +5449,8 @@ static int parse_options(int argc, char **argv)
   if (!notify_post_init())
     return EXIT_BADCMD;
 
-  // print header
-  PrintHead();
+  // print header, don't write Copyright line to syslog
+  PrintOut(LOG_INFO, "%s\n", format_version_info("smartd", (debugmode ? 2 : 1)).c_str());
 
   // No error, continue in main_worker()
   return -1;

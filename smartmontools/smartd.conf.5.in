@@ -13,7 +13,8 @@ $Id$
 .if n .sp
 ..
 .de Vb \" Begin verbatim text
-.ft CW
+.if t .ft CW
+.if n .ft R
 .nf
 .ne \\$1
 ..
@@ -58,10 +59,8 @@ problems, you may be annoyed by the string of error log messages about devices
 that can't be opened.
 .PP
 One can avoid this problem, and gain more control over the types of
-events monitored by
-\fBsmartd\fP,
-by using the configuration file
-.B /usr/local/etc/smartd.conf.
+events monitored by \fBsmartd\fP, by using the configuration file
+\fB/usr/local/etc/smartd.conf\fP.
 This file contains a list of devices to monitor, with one device per
 line.  An example file is included with the
 .B smartmontools
@@ -105,16 +104,10 @@ Section below!
 #
 /dev/sdc \-m admin@example.com \-M test
 #
-# Strange device.  It's SCSI.  Start a scheduled
-# long self test between 5 and 6 am Monday/Thursday
-/dev/weird \-d scsi \-s L/../../(1|4)/05
-#
 # An ATA disk may appear as a SCSI device to the
 # OS.  If a SCSI to ATA Translation (SAT) layer
 # is between the OS and the device then this can be
-# flagged with the '\-d sat' option.  This situation
-# may become common with SATA disks in SAS and FC
-# environments.
+# flagged with the '\-d sat' option.
 /dev/sda \-a \-d sat
 .\" %IF OS FreeBSD Linux
 #
@@ -161,6 +154,15 @@ Section below!
 /dev/tws0 \-d 3ware,0 \-a \-s L/../../7/00
 /dev/tws0 \-d 3ware,1 \-a \-s L/../../7/02
 .\" %ENDIF OS FreeBSD
+.\" %IF OS Linux
+#
+# Two disks connected to the first HP SmartArray controller
+# which uses the Linux cciss driver.  Start long self\-tests
+# on Sunday nights and short self\-tests every night and send
+# errors to root.
+/dev/sda \-d cciss,0 \-a \-s (L/../../7/02|S/../.././02) \-m root
+/dev/sda \-d cciss,1 \-a \-s (L/../../7/03|S/../.././03) \-m root
+.\" %ENDIF OS Linux
 .\" %IF OS FreeBSD Linux
 #
 # Three SATA disks on a HighPoint RocketRAID controller.
@@ -213,14 +215,6 @@ Section below!
 /dev/arcmsr0 \-d areca,2 \-a \-s L/../../7/01
 /dev/arcmsr0 \-d areca,3 \-a \-s L/../../7/02
 .\" %ENDIF OS FreeBSD
-.\" %IF OS Linux
-#
-# Two SATA disks on an Intelliprop controller.
-# Start short self\-tests daily between 1\-2, 2\-3, and
-# 3\-4 am.
-/dev/sde \-d intelliprop,0+sat \-a \-s S/../.././01
-/dev/sde \-d intelliprop,1+sat \-a \-s S/../.././02
-.\" %ENDIF OS Linux
 #
 # The following line enables monitoring of the
 # ATA Error Log and the Self\-Test Error Log.
@@ -418,11 +412,14 @@ is only used if the SCSI INQUIRY data reports a SATL (VENDOR: "ATA     ").
 Otherwise device type SCSI (for SCSI/SAS disks) is used.
 .Sp
 .I usbasm1352r,PORT
-\- [NEW EXPERIMENTAL SMARTD FEATURE]
+\- [NEW EXPERIMENTAL SMARTD 7.4 FEATURE]
 this device type is for one or two SATA disks that are behind an ASMedia
 ASM1352R USB to SATA (RAID) bridge.
 The parameter PORT (0 or 1) selects the disk to monitor.
-Note: \*(Aq\-d sat\*(Aq also works for the first disk.
+.br
+Note: This USB bridge also supports \*(Aq\-d sat\*(Aq.
+This monitors either the first disk or the second disk if no disk is
+connected to the first port.
 .Sp
 .I usbcypress
 \- this device type is for ATA disks that are behind a Cypress USB to PATA
@@ -438,11 +435,12 @@ The 48-bit ATA commands (required e.g.\& for \*(Aq\-l xerror\*(Aq, see below)
 do not work with all of these bridges and are therefore disabled by default.
 These commands can be enabled by \*(Aq\-d usbjmicron,x\*(Aq.
 If two disks are connected to a bridge with two ports, an error message is
-printed if no PORT is specified.
-The port can be specified by \*(Aq\-d usbjmicron[,x],PORT\*(Aq where PORT is 0
-(master) or 1 (slave).  This is not necessary if the device uses a port
-multiplier to connect multiple disks to one port.  The disks appear under
-separate /dev/ice names then.
+printed if no PORT (0 or 1) is specified.
+.br
+The PORT parameter is not necessary if the device uses a port multiplier to
+connect multiple disks to one port.
+The disks appear under separate /dev/ice names then.
+.br
 CAUTION: Specifying \*(Aq,x\*(Aq for a device which does not support it results
 in I/O errors and may disconnect the drive.  The same applies if the specified
 PORT does not exist or is not connected to a disk.
@@ -462,7 +460,7 @@ PL2571/2771/2773/2775 USB to SATA bridge.
 bridge.
 .Sp
 .I sntasmedia
-\- [NEW EXPERIMENTAL SMARTD FEATURE]
+\- [NEW EXPERIMENTAL SMARTD 7.3 FEATURE]
 this device type is for NVMe disks that are behind an ASMedia USB to NVMe
 bridge.
 .Sp
@@ -485,13 +483,13 @@ bridge.
 .\" %ENDIF OS Linux
 .\" %IF OS FreeBSD Linux
 .I megaraid,N
-\- [Linux and FreeBSD only] the device consists of one or more SCSI/SAS disks connected
-to a MegaRAID controller.  The non-negative integer N (in the range of 0 to
-127 inclusive) denotes which disk on the controller is monitored.
+\- [FreeBSD and Linux only] the device consists of one or more SCSI/SAS disks
+connected to a MegaRAID controller.
+The non-negative integer N (in the range of 0 to 127 inclusive) denotes which
+disk on the controller is monitored.
 This interface will also work for Dell PERC controllers.
 In log files and email messages this disk will be identified as
 megaraid_disk_XXX with XXX in the range from 000 to 127 inclusive.
-
 Please see the \fBsmartctl\fP(8) man page for further details.
 .Sp
 .\" %ENDIF OS FreeBSD Linux
@@ -566,8 +564,7 @@ Please see the \fBsmartctl\fP(8) man page for further details.
 .\" %ENDIF OS FreeBSD Linux
 .\" %IF OS Linux
 .I sssraid,E,S
-\- [Linux only]
-[NEW EXPERIMENTAL SMARTD FEATURE]
+\- [Linux only: NEW EXPERIMENTAL SMARTD 7.4 FEATURE]
 the device consists of one or more SCSI/SAS or SATA disks connected to a
 SSSRAID controller.
 The non-negative integer E (in the range of 0 to 8) denotes the enclosure
@@ -595,7 +592,8 @@ See \*(Aqjmb39x...\*(Aq above for valid arguments.
 \- the device specified by this configuration entry should be ignored.
 This allows one to ignore specific devices which are detected by a following
 DEVICESCAN configuration line.
-It may also be used to temporary disable longer multi-line configuration entries.
+It may also be used to temporary disable longer multi-line configuration
+entries.
 This Directive may be used in conjunction with the other \*(Aq\-d\*(Aq
 Directives.
 .Sp
@@ -741,7 +739,7 @@ error log has increased since the last check.
 \- [NVMe] report if the "Number of Error Information Log Entries" from the
 SMART/Health Information log has increased since the last check.
 .br
-[NEW EXPERIMENTAL SMARTD FEATURE]
+[NEW EXPERIMENTAL SMARTD 7.4 FEATURE]
 This will only be logged as LOG_CRIT if at least one of the new errors is
 still present in the Error Information log and its status indicates a
 device related error.
@@ -1093,8 +1091,8 @@ are run instead.
 This is handled by the script /usr/local/etc/smartd_warning.sh
 (see also \*(Aq\-M exec\*(Aq below).
 Plugin scripts without execute permission are silently ignored.
-If any plugin script is missing or fails a with nonzero exit status, the warning
-script exits immediately without sending mail.
+If any plugin script is missing or fails with a nonzero exit status, the
+warning script exits immediately without sending mail.
 .\" %ENDIF NOT OS Windows
 .\" %ENDIF ENABLE_SMARTDPLUGINDIR
 .\" %IF OS Windows
@@ -1129,7 +1127,7 @@ three):
 is the default unless state persistence (\*(Aq\-s\*(Aq option) is enabled.
 .Sp
 .I always
-\- [NEW EXPERIMENTAL SMARTD FEATURE]
+\- [NEW EXPERIMENTAL SMARTD 7.4 FEATURE]
 send additional warning reminder emails, upon each check, for each type
 of disk problem detected.
 .Sp
@@ -1144,7 +1142,7 @@ then a two-day interval, then a four-day interval, and so on for each
 type of disk problem detected.  Each interval is twice as long as the
 previous interval.
 .br
-[NEW EXPERIMENTAL SMARTD FEATURE]
+[NEW EXPERIMENTAL SMARTD 7.4 FEATURE]
 The interval length will stay at 32 days after 5 warning reminder emails.
 .Sp
 If a disk problem is no longer detected, the internal email counter is
@@ -1693,7 +1691,7 @@ Allows one to override \fBsmartd\fP command line options for specific devices.
 Only the following OPTION is currently supported:
 .TP
 .B \-c i=N, \-c interval=N
-[NEW EXPERIMENTAL SMARTD FEATURE]
+[NEW EXPERIMENTAL SMARTD 7.3 FEATURE]
 Sets the interval between disk checks to N seconds, where N is a decimal
 integer.
 The minimum allowed value is ten.

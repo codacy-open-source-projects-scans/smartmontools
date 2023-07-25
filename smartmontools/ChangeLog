@@ -1,5 +1,69 @@
 $Id$
 
+2023-07-24  Christian Franke  <franke@computer.org>
+
+	man pages: Set svn:eol-style=LF to be compatible with Cygwin sed.
+
+	man pages: Use CW font only if troff is used.
+	This silences a related warning from groff.
+
+	smartd.cpp: Don't write Copyright line to syslog.
+	This prevents that logfile analyzers need an extra suppression rule
+	(Red Hat Bugzilla 673758 and 1162741).
+	utility.cpp, utility.h: Enhance 'format_version_info()' accordingly.
+	smartctl.cpp: Adjust function call.
+
+	nvmeprint.cpp: Add NVMe 2.0 capability flags.
+
+	ataidentify.cpp, ataprint.cpp: ACS-4/5/6 enhancements.
+
+	smartd.cpp: Don't write attrlog if ATA attributes were not read.
+	Improvement of original fix r5116.
+
+	os_win32/update-smart-drivedb.ps1.in: Fix typo, update help text.
+
+	smartd.conf: Align help text with 'smartd -D' output.
+
+	smartd.conf, smartd.conf.5.in: Remove outdated examples.
+
+	smartd.conf: Remove SVN Id string
+	(Debian 54_remove-Id-from-smartd.conf.diff).
+
+	smartd.conf, smartd.conf.5.in: Add examples for '-d cciss,N' on Linux
+	(based on Debian 61_cciss-doc.patch).
+
+	smartctl.8.in: Minor rework of '-a' and '-x' sections.
+	Merge duplicate info about TapeAlert.
+	Note that admin rights are not needed for Windows NVMe driver.
+	Note that the NVMe error log is not persistent.
+
+	smartctl.8.in, smartd.conf.5.in: Update sections '-d usbasm1352r'
+	and '-d usbjmicron'.
+
+	smartd.conf.5.in: Remove example for deprecated '-d intelliprop,N'.
+
+	smartctl.8.in, smartd.conf.5.in: Fix typos.
+
+	man pages: Silence harmless warnings from 'mandoc -T lint'.
+	Fix bogus bold font setting (Debian Bug 1041295).
+
+	man pages: Add release numbers to EXPERIMENTAL notes.
+	Keep notes of previous release 7.3.
+
+2023-07-16  Christian Franke  <franke@computer.org>
+
+	os_win32/installer.nsi: Rework InstType names, default to x86_64.
+	64-bit executables are now archived in 'bin' directory, 32-bit
+	executables in 'bin32'.  Update links to NSIS examples.
+
+	configure.ac: Don't fail if libcap-ng or libsystemd libs are missing.
+	No appropriate library may be provided if 'LDFLAGS=-static' is used.
+
+	Makefile.am: Add *.cmd and *.ps1 to Windows checksum*.txt files.
+
+	configure.ac: Fix 'makensis' search for 64-bit Cygwin and MSYS2.
+	Makefile.am: Remove conditional 'OS_WIN32_NSIS'.
+
 2023-07-10  Christian Franke  <franke@computer.org>
 
 	utility.cpp: Add workaround for limited 'TZ' support of MSVCRT

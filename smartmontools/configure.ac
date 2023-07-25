@@ -51,21 +51,20 @@ AC_ARG_VAR(MAKENSIS, [NSIS compiler command])
 AC_CANONICAL_HOST
 
 AC_CHECK_TOOL(NM, [nm])
-case "${host}" in
-  *-*-mingw*)
+case "$host_os" in
+  mingw*)
     AC_CHECK_TOOL(WINDMC, [windmc])
     AC_CHECK_TOOL(WINDRES, [windres])
     test -n "$WINDRES" || AC_MSG_ERROR([Missing Windows resource compiler (windres)])
 
-    AC_MSG_CHECKING([for makensis])
-    if test -z "$MAKENSIS"; then
-      if test -n "$PROGRAMFILES" && "$PROGRAMFILES/NSIS/makensis" -VERSION >/dev/null 2>&1; then
-        MAKENSIS="$PROGRAMFILES/NSIS/makensis"
-      elif makensis -VERSION >/dev/null 2>&1; then
-        MAKENSIS=makensis
-      fi
+    AC_CHECK_PROG(MAKENSIS, [makensis], [makensis])
+    if test -z "$MAKENSIS" && test -n "$PROGRAMFILES"; then
+      AC_MSG_CHECKING([for makensis at default install location])
+      for x in '' ' (x86)'; do if test -f "${PROGRAMFILES}${x}/NSIS/makensis.exe"; then
+        MAKENSIS="${PROGRAMFILES}${x}/NSIS/makensis"; break
+      fi; done
+      AC_MSG_RESULT([${MAKENSIS:-no}])
     fi
-    AC_MSG_RESULT([${MAKENSIS:-no}])
     ;;
 esac
 
@@ -326,7 +325,7 @@ case "$with_libcap_ng:$host_os" in
       [AC_DEFINE(HAVE_LIBCAP_NG, 1,
         [Define to 1 if you have the `cap-ng' library (-lcap-ng).]) dnl `vim syntax
        CAPNG_LDADD="-lcap-ng"; use_libcap_ng=yes],
-      [AC_MSG_ERROR([libcap-ng headers found but library is missing])])],
+      [test "$with_libcap_ng" != "yes" || AC_MSG_ERROR([libcap-ng headers found but library is missing])])],
       [test "$with_libcap_ng" != "yes" || AC_MSG_ERROR([Missing libcap-ng header files])])
     ;;
 esac
@@ -344,7 +343,7 @@ case "$with_libsystemd:$host_os" in
       [AC_DEFINE(HAVE_LIBSYSTEMD, 1,
         [Define to 1 if you have the `systemd' library (-lsystemd).]) dnl `vim syntax
        SYSTEMD_LDADD="-lsystemd"; use_libsystemd=yes],
-      [AC_MSG_ERROR([libsystemd headers found but library is missing])])],
+      [test "$with_libsystemd" != "yes" || AC_MSG_ERROR([libsystemd headers found but library is missing])])],
       [test "$with_libsystemd" != "yes" || AC_MSG_ERROR([Missing libsystemd header files])])
     ;;
 esac
@@ -782,7 +781,6 @@ AM_CONDITIONAL(OS_DARWIN, [test "$os_darwin" = "yes"])
 AM_CONDITIONAL(OS_SOLARIS, [test "$os_solaris" = "yes"])
 AM_CONDITIONAL(OS_WIN32, [test "$os_win32" = "yes"])
 AM_CONDITIONAL(OS_WIN32_MINGW, [test "$os_win32_mingw" = "yes"])
-AM_CONDITIONAL(OS_WIN32_NSIS, [test -n "$MAKENSIS"])
 AM_CONDITIONAL(OS_WIN64, [test "$os_win64" = "yes"])
 
 if test "$GXX" = "yes"; then
@@ -1041,7 +1039,7 @@ case "$host_os:$with_libsystemd:$use_libsystemd:$PKG_CONFIG" in
     if $PKG_CONFIG systemd >/dev/null 2>&1; then
       AC_MSG_WARN([
 systemd(1) is used on this system but smartd systemd notify support will
-not be available because libsystemd-dev[[el]] package is not installed.
+not be available because a required library is missing.
 Use option '--without-libsystemd' to suppress this warning.
 ])
     fi ;;
