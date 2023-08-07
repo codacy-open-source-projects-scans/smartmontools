@@ -1,5 +1,42 @@
 $Id$
 
+2023-08-01  Christian Franke  <franke@computer.org>
+
+	smartmontools 7.4
+
+2023-07-31  Christian Franke  <franke@computer.org>
+
+	drivedb.h:
+	- Apacer AS340/350 SSDs: Rename, add AS350 (#1444).
+	- Phison Driven SSDs: Corsair Force LE (#1348), Patriot Ignite,
+	  PNY CS* 500GB.
+	- Phison Driven OEM SSDs: Hoodisk (GH issues/195), Kingmax (#1699).
+	- Silicon Motion based SSDs: Mushkin *-LT variant.
+	- SK hynix SATA SSDs: Add attribute 249 (GH pull/107), remove
+	  duplicate regex.
+
+2023-07-30  Christian Franke  <franke@computer.org>
+
+	drivedb.h:
+	- ATP SATA III aMLC M.2 2242/80 SSDs: Rename, add 2280 (#1717).
+	- Silicon Motion based SSDs: ADATA SU630 (#1713), LITEON LCH (#1727),
+	  NFORCE SSZS13 (#1707), ONDA S-12 (#1698), Patriot P210.
+	- Silicon Motion based OEM SSDs: Intenso (#1700, #1706, #1732),
+	  Netac Z Slim (#1656), SPCC M.2 SSD (#1662).
+	- USB: Netac Z Slim (0x0dd8:0x0562) (#1656).
+	- USB: ASMedia ASM2364 (0x174c:0x2364).
+
+2023-07-29  Christian Franke  <franke@computer.org>
+
+	drivedb.h:
+	- USB: Samsung Portable SSD T7 Shield (0x04e8:0x61fb) (#1730, #1733)
+	- USB: ASMedia ASM1352-PM (0x174d:0x1352) (GH/pull 181)
+	- USB: JMicron JMS578 (0xab12:0x34cd) (#1737)
+
+2023-07-25  Christian Franke  <franke@computer.org>
+
+	nvmeprint.cpp: Add JSON support for '-l error' and '-l selftest'.
+
 2023-07-24  Christian Franke  <franke@computer.org>
 
 	man pages: Set svn:eol-style=LF to be compatible with Cygwin sed.
