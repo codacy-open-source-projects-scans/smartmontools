@@ -1,5 +1,43 @@
 $Id$
 
+2023-08-22  Christian Franke  <franke@computer.org>
+
+	Makefile.am: Replace remaining elements which require GNU make.
+	Expand remaining '%'-pattern rules.
+	Use actual file instead of '$<' and '$^' in non-implicit rules.
+	Remove the no longer used target 'txtman'.
+
+2023-08-21  Christian Franke  <franke@computer.org>
+
+	Allow reproducible builds of the Windows installer.
+
+	configure.ac: Propagate SOURCE_DATE_EPOCH to Makefile.
+	Makefile.am: Add SOURCE_DATE_EPOCH to CPPFLAGS.
+	Set SOURCE_DATE_EPOCH if PDF man page is generated.
+	Remove "Time: ..." from HTML man page.
+	Use 'pe32edit.sh' to modify 'smartctl-nc.exe'.
+	Rework target 'distdir-win32':  Set file header timestamps
+	of all EXE files to SOURCE_DATE_EPOCH.  Set last modification
+	time of all generated files to SOURCE_DATE_EPOCH.
+	os_win32/pe32edit.sh: New bash script to set timestamp and
+	subsystem in the PE32 file header.
+
+2023-08-19  Christian Franke  <franke@computer.org>
+
+	drivedb.h:
+	- Apacer SSDs: AP1TPPSS25-R (#1640).
+	- Crucial/Micron RealSSD C300/P300: C300-MTFDBAK* (#1421),
+	  MTFDBAK* (#1728).
+	- Micron 5100 / 52x0 / 5300 / 5400 SSDs: 5200 240GB.
+	- Intel 53x and Pro 1500/2500 Series SSDs: *A5L variant (#1435).
+	- Intel 730 and DC S35x0/3610/3700 Series SSDs: S3500 HPE (#1651).
+	- Samsung based SSDs: PM897 HPE (#1650), Attribute 252 (#1734).
+
+2023-08-18  Alex Samorukov <samm@os2.kiev.ua>
+
+	drivedb.h:
+	- Other World Computing USB3 to SATA (GH: #206)
+
 2023-08-01  Christian Franke  <franke@computer.org>
 
 	smartmontools 7.4
