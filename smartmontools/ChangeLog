@@ -1,5 +1,42 @@
 $Id$
 
+2023-09-16  Oleksii Samorukov  <samm@os2.kiev.ua>
+
+	CI: export SOURCE_DATE_EPOCH on macOS as tools are expecting it as an
+	environment variable
+	macOS: set files timestamps in the ISO to SOURCE_DATE_EPOCH value
+
+2023-09-15  Oleksii Samorukov  <samm@os2.kiev.ua>
+
+	Makefile.am: set env ZERO_AR_DATE=1 if for reproducible builds on macOS.
+	macOS: use xorriso instead of mkisofs for reproducible builds
+	macOS: remove timestamps from cpio and gzip
+	macOS: reset timestamps before calling cpio
+
+2023-09-11  Christian Franke  <franke@computer.org>
+
+	Makefile.am: Add 'dist-xz' and 'dist-zstd' rules for reproducible
+	builds.  Silence 'dist-win32' rule and add warning.
+
+	ataprint.cpp: Don't print error log entries if error count is
+	zero (#1745).
+
+2023-09-07  Christian Franke  <franke@computer.org>
+
+	Makefile.am: Use same timestamp for all EXE files.
+	Minor update of clean targets.  Simplify gzip command.
+
+	Makefile.am: Prevent that gzip stores the original timestamp.
+
+	Makefile.am: Add custom rule for reproducible builds of source
+	tarball.
+
+	Makefile.am: Silence custom rules if 'make V=0' is used.
+	autogen.sh, configure.ac: Require automake >= 1.13.
+
+	Makefile.am: Silence automake warning about duplicate '.PHONY'.
+	Remove no longer needed SET_MAKE.
+
 2023-08-22  Christian Franke  <franke@computer.org>
 
 	Makefile.am: Replace remaining elements which require GNU make.
