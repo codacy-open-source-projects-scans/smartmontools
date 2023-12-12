@@ -1,5 +1,17 @@
 $Id$
 
+2023-12-11  Gabriele Pohl  <contact@dipohl.de>
+
+	drivedb.h:
+	- Phison Driven SSDs: SEDC600M(480|960|1920|3840|7680)G (#1726)
+	- Western Digital Red: WDC WD[2-8]0EFPX (2TB, 3TB, 4TB, 6TB, 8TB) (#1723, #1736)
+
+2023-12-10  Gabriele Pohl  <contact@dipohl.de>
+
+	drivedb.h:
+	- Toshiba N300/MN NAS HDD: TOSHIBA HDWG440 (#1749)
+	- Marvell based SanDisk SSDs: SanDisk SDSSDH3 512G (#1768)
+
 2023-10-17  Douglas Gilbert  <dgilbert@interlog.com>
 
 	scsiprint.cpp : missed a "not" in the following description
