@@ -1,5 +1,46 @@
 $Id$
 
+2023-12-19  Christian Franke  <franke@computer.org>
+
+	os_win32/update-smart-drivedb.ps1.in: Fix call of external commands.
+	This fixes the call of gpg if gpg.exe appears more than once in the
+	PATH (#1782).  Print gpg[conf].exe location if -Verbose is used.
+
+	smartctl.8.in, smartd.conf.5.in: Fix max number of 'cciss' drives
+	(see GH issues/228 and ticket #49).
+
+2023-12-18  Christian Franke  <franke@computer.org>
+
+	drivedb.h:
+	- Intel S4510/S4610/S4500/S4600 Series SSDs: 7.68TB (GH pull/103).
+	- Marvell based SanDisk SSDs: SD7SB7S960G (GH issues/211).
+	- SanDisk based SSDs: SDSA6D* variant (#1721).
+	- HGST Ultrastar HC310/320: *A6L1 variant (GH pull/77).
+
+2023-12-18  Werner Fischer  <tk-wfischer@users.noreply.github.com>
+
+	drivedb.h: Add ATP SATA III SSDs (GH pull/191)
+
+	- Add ATP Electronics Value Line and Superior Line SATA SSDs
+	- Distinguish between them based on firmware versions
+	- SSDs:
+	  - Value LIne (Phison based)
+	  - Superior Line (Silicon Motion based)
+
+2023-12-13  Gabriele Pohl  <contact@dipohl.de>
+
+	drivedb.h:
+	- SandForce Driven SSDs: SanDisk SD8SNAT128G1002 (#799)
+	- WD Blue / Red / Green SSDs: WD Blue SA510 2.5 1000GB (#1659)
+	- Marvell based SanDisk SSDs: SanDisk SD9SN8W128G1020 (#1569)
+
+2023-12-12  Gabriele Pohl  <contact@dipohl.de>
+
+	drivedb.h:
+	- Vendor attribute names for SandForce Driven SSDs: SanDisk SDSSDA240G
+	  (#1317) Patch by Artem S. Tashkinov
+	- SandForce Driven SSDs: SanDisk SD8SFAT128G1122 (#712)
+
 2023-12-11  Gabriele Pohl  <contact@dipohl.de>
 
 	drivedb.h:
