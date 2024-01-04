@@ -671,8 +671,9 @@ const drive_settings builtin_knowndrives[] = {
   },
   { "SandForce Driven SSDs",
     "SanDisk SDSSDA(120|240|480)G|" // SanDisk SSD Plus, tested with SanDisk SDSSDA240G/U21010RL
-    "SanDisk SD8S[FN]AT128G1(00|12)2", // SanDisk Z400s, tested with 
+    "SanDisk SD8S[BFN]AT128G1(00|12)2", // SanDisk Z400s, tested with 
       // SanDisk SD8SFAT128G1122/Z2333000, SanDisk SD8SNAT128G1002/Z2317002
+      // SanDisk SD8SBAT128G1002/Z2317002
     "", "",
     "-v 5,raw48,Retired_Block_Count "
   //"-v 9,raw24(raw8),Power_On_Hours "
@@ -2012,7 +2013,8 @@ const drive_settings builtin_knowndrives[] = {
     "SAMSUNG MZ7L3(240|480|960|1T9|3T8|7T6)H(B[LN][AT]|CHQ|CJR)-.*|" // PM893/897, tested with
       // SAMSUNG MZ7L3240HCHQ-00A07/JXTC104Q, SAMSUNG MZ7L3480HCHQ-00A07/JXTC104Q,
       // SAMSUNG MZ7L3480HBLT-00A07/JXTE004Q, SAMSUNG MZ7L33T8HBLT-00A07/JXTC104Q
-    "MK000(240|480|960)GZXRB|" // MK000960GZXRB/HPG0 (HPE MZ7L3960HBLT-00AH3)
+    "MK000(240|480|960)GZXR[AB]|" // MK000960GZXRB/HPG0 (HPE MZ7L3960HBLT-00AH3)
+      // MK000480GZXRA/HPG0 (HPE P18432-B21)
     "SAMSUNG MZ7KH(240|480|960|1T9|3T8)HA(HQ|JR|LS)-.*|" //SM883
     "SAMSUNG MZ[7N](LF|TY)(128|192|256)H[CD](GS|HP)-.*|" // CM871/871a, tested with SAMSUNG MZNLF128HCHP-000H1/FXT21H1Q,
       // SAMSUNG MZNTY256HDHP-000/MAT21K0Q, SAMSUNG MZ7LF192HCGS-000L1/FXT03L1Q
@@ -2074,11 +2076,13 @@ const drive_settings builtin_knowndrives[] = {
   },
   { "Marvell based SanDisk SSDs",
     "SanDisk SD5SG2[0-9]*G1052E|" // X100 (88SS9174), tested with SanDisk SD5SG2256G1052E/10.04.01
-    "SanDisk SD6S[BF][12]M[0-9]*G(1022I?)?|" // X110/X210 (88SS9175/187?), tested with SanDisk SD6SB1M064G1022I/X231600,
+    "SanDisk SD6S[BFP][12]M[0-9]*G(1022I?|1102)?|" // X110/X210 (88SS9175/187?), tested with SanDisk SD6SB1M064G1022I/X231600,
       // SanDisk SD6SB1M256G1022I/X231600, SanDisk SD6SF1M128G1022/X231200, SanDisk SD6SB2M512G1022I/X210400
+      // SanDisk SD6SP1M128G1102/X231302
     "SanDisk SD7S[BN][67]S-?(128|256|512|960)G(1122|-1006)?|" // X300 (88SS9189?), tested with
       // SanDisk SD7SB6S128G1122/X3310000, SanDisk SD7SN6S-512G-1006/X3511006, SanDisk SD7SB7S960G/X36310DC
-    "SanDisk SD8S[BN]8U-?((128|256|512)G|1T00)(1122|-1006)|" // X400 (88SS1074), tested with SanDisk SD8SB8U128G1122/X4120000
+    "SanDisk SD8[ST][BN]8U-?((128|256|512)G|1T00)(1122|-10[01]6)|" // X400 (88SS1074), tested with SanDisk SD8SB8U128G1122/X4120000
+      // SanDisk SD8TB8U-512G-1016/X4163116
     "SanDisk SD9S[BN]8W-?((128|256|512)G|[12]T00)(1122|-1006|1020)|" // X600, tested with SanDisk SD9SB8W128G1122/X6107000, SD9SB8W-512G-1006/X6103006
       // SanDisk SD9SB8W1T001122/X6107000, SD9SB8W256G1122/X6107000, SanDisk SD9SN8W128G1020/X6101020
     "SanDisk SDSSDA-((120|240|480)G|[12]T00)|" // Plus, tested with SanDisk SDSSDA-2T00/411040RL
@@ -2347,9 +2351,9 @@ const drive_settings builtin_knowndrives[] = {
     "Dogfish SSD (128|256|512)GB|" // tested with Dogfish SSD 128GB/S1211A0
     "GIM(16|32|64|128|256|512)|"// GUDGA GIM, tested with GIM128/U0401A0
     "INTENSO( SSD)?|" // tested with INTENSO/S1211A0 (Portable SSD 256GB premium edition),
-      // INTENSO/V0609A0, INTENSO SSD/V0823A0
-    "Intenso  ?SSD( Sata III)?|" // tested with Intenso SSD/Q1107A0, Intenso  SSD Sata III/P0510E,
-      // Intenso SSD Sata III/R0817B0, Intenso SSD Sata III/V0303B0
+      // INTENSO/V0609A0, INTENSO SSD/V0823A0, INTENSO/V0718B0 
+    "Intenso  ?SSD( S(ata|ATA) ?III)?|" // tested with Intenso SSD/Q1107A0, Intenso  SSD Sata III/P0510E,
+      // Intenso SSD Sata III/R0817B0, Intenso SSD Sata III/V0303B0, Intenso SSD SATAIII/W0825A0
     "KingFast|" // tested with KingFast/P0725A (F6M), KingFast/S0424A0 (120GB), KingFast/S1128B0 (512GB)
     "KSM512|" // KingSpec, tested with KSM512/S0509A0
     "LDLC|" // tested with LDLC/KFS03005
@@ -2365,7 +2369,7 @@ const drive_settings builtin_knowndrives[] = {
     "Verbatim Vi550 S3", // may also exist with different controller (tickets #1626 <> #1629),
       // tested with Verbatim Vi550 S3/U1124A0 (128GB)
     "HPS2227I|KFS03005|P0510E|P0725A|Q(0627|1107)A0|R0817B0|S(0424|0509|0618|1211|1230)A0|"
-    "S112[78]B0|T0(311|519|910)A0|U(0202|0401|0506|1124)A0|V0((609|823)A|303B)0|V1027A0",
+    "S112[78]B0|T0(311|519|910)A0|U(0202|0401|0506|1124)A0|V0((609|823)A|(303|718)B)0|V1027A0|W0825A0",
     "",
     "-v 148,raw48,Total_SLC_Erase_Ct "
     "-v 149,raw48,Max_SLC_Erase_Ct "
@@ -3996,6 +4000,13 @@ const drive_settings builtin_knowndrives[] = {
   },
   { "Toshiba MG10ACA... Enterprise Capacity HDD", // tested with TOSHIBA MG10ACA20TE/0102
     "TOSHIBA MG10ACA20T[AE]Y?",
+    "", "",
+    "-v 23,raw48,Helium_Condition_Lower "
+    "-v 24,raw48,Helium_Condition_Upper "
+    "-v 27,raw48,MAMR_Health_Monitor"
+  },
+  { "Toshiba MG10AFA... Enterprise Capacity HDD", // tested with TOSHIBA MG10AFA22TE/0102
+    "TOSHIBA MG10AFA22T[AE]Y?",
     "", "",
     "-v 23,raw48,Helium_Condition_Lower "
     "-v 24,raw48,Helium_Condition_Upper "
@@ -5885,6 +5896,12 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "",
     "-d sat,12" // 0x50a1: "-d sat" does not work (ticket #151)
+  },
+  { "USB: Seagate FireCuda Gaming SSD; ASMedia ASM2364",
+    "0x0bc2:0xaa1a",
+    "", // 0x100
+    "",
+    "-d sntasmedia"
   },
   { "USB: Seagate; ",
     "0x0bc2:0x....",
