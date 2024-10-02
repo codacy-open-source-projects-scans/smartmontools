@@ -1,5 +1,24 @@
 $Id$
 
+2024-09-29  Ru Wang  <ru.wang@seagate.com>
+
+	farmprint.cpp (GH pull/285):
+	- Fix SATA decode of dateOfAssembly.
+	- Uninitialized string (part from GH issues/272).
+
+2024-09-23  Christian Franke  <franke@computer.org>
+
+	os_win32.cpp: Decode Windows 11 23H2 and 24H2 build numbers.
+
+	drivedb.h:
+	- Toshiba MG09ACA... Enterprise Capacity HDD: 10-14GB,
+	  Lenovo OEM (#1876).
+	- Toshiba MG10ADA... Enterprise Capacity HDD
+	- Seagate Barracuda 7200.12: Suppress warning if HP firmware (#1847).
+	- Seagate Barracuda 7200.12: Attributes 188 and 240 (#1855).
+	- Seagate BarraCuda 3.5 (CMR): Reformat regexp.
+	- Seagate Constellation ES.2: IBM OEM (#1431).
+
 2024-05-08  Christian Franke  <franke@computer.org>
 
 	smartctl.cpp, smartd.cpp: Fix segfault on missing option argument (#1830).
