@@ -584,8 +584,8 @@ const drive_settings builtin_knowndrives[] = {
     "(Micron_5200_)?MTFDDAK(240|480|960|1T9|3T8|7T6)TD(C|D|N)|" // tested with Micron_5200_MTFDDAK240TDN/D1MU005,
       // Micron_5200_MTFDDAK3T8TDD/D1MU505
     "Micron_5210_MTFDDAK(480|960|1T9|3T8|7T6)QDE|" // tested with Micron_5210_MTFDDAK7T6QDE/D2MU804
-    "Micron_5300(HC)?_MTFDDA[KV](240|480|960|1T9|3T8|7T6)TD[STU]|" // tested with Micron_5300_MTFDDAK1T9TDS/D3MU001
-      // Micron_5300HC_MTFDDAK960TDS/D3MN010
+    "(Micron_5300(HC)?_)?MTFDDA[KV](240|480|960|1T9|3T8|7T6)TD[STU]|" // tested with Micron_5300_MTFDDAK1T9TDS/D3MU001
+      // Micron_5300HC_MTFDDAK960TDS/D3MN010, MTFDDAK1T9TDT/D3MU001
     "(Micron_5400_)?(EE|MT)FDDA[KV](240|480|960|1T9|3T8|7T6)TG[ABC]", // tested with Micron_5400_MTFDDAK1T9TGB/D4MU001,
     "", "",
   //"-v 1,raw48,Raw_Read_Error_Rate "
@@ -2992,7 +2992,8 @@ const drive_settings builtin_knowndrives[] = {
     "", "", ""
   },
   { "Seagate Mobile HDD", // tested with ST1000LM035-1RK172/ACM1,
-     // ST1000LM035-1RK172/ACM2, ST2000LM007-1R8174/SBK2
+     // ST1000LM035-1RK172/ACM2, ST1000LM035-1RK172/EB01 (0x1005:0xc004),
+     // ST2000LM007-1R8174/SBK2
     "ST(2000LM0(07|09|10)|1000LM03[578])-.*",
     "", "", ""
   },
@@ -3984,6 +3985,11 @@ const drive_settings builtin_knowndrives[] = {
     "TOSHIBA MQ03UBB(300|200|250)",
     "", "", ""
   },
+  { "Toshiba 2.5\" HDD MQ04UBB... (USB, SMR)", // tested with TOSHIBA MQ04UBB400/JS000U,
+      // TOSHIBA MQ04UBB400/JS0B0U (0x0480:0xa301) ('Device managed zones', no TRIM support)
+    "TOSHIBA MQ04UBB[24]00",
+    "", "", ""
+  },
   { "Toshiba 3.5\" HDD MK.002TSKB", // tested with TOSHIBA MK1002TSKB/MT1A
     "TOSHIBA MK(10|20)02TSKB",
     "", "", ""
@@ -4053,6 +4059,13 @@ const drive_settings builtin_knowndrives[] = {
   { "Toshiba MG10AFA... Enterprise Capacity HDD", // tested with TOSHIBA MG10AFA22TE/0102
     "TOSHIBA MG10AFA22T[AE]Y?",
     "", "",
+  //"-v 23,raw48,Helium_Condition_Lower "
+  //"-v 24,raw48,Helium_Condition_Upper "
+    "-v 27,raw48,MAMR_Health_Monitor"
+  },
+  { "Toshiba MG11 Cloud-scale Capacity HDD", // tested with TOSHIBA MG11ACA24TE/0102
+    "TOSHIBA MG11AC[AP](1[468]|2[024])TEY?", // ACP = self-encrypting device (SED)
+    "", "",                                  // TEY = sanitize instant erase (SIE)
   //"-v 23,raw48,Helium_Condition_Lower "
   //"-v 24,raw48,Helium_Condition_Upper "
     "-v 27,raw48,MAMR_Health_Monitor"
@@ -4630,6 +4643,36 @@ const drive_settings builtin_knowndrives[] = {
     "-v 200,raw48,Pressure_Limit "
     "-v 240,msec24hour32"
   },
+  { "Seagate Exos X18", // tested with ST12000NM000J-2TY103/SN02,
+      // ST16000NM000J-2TW103/SC02, ST18000NM000J-2TV103/SN01, .../SN02,
+      // ST18000NM002J-2TV133/PAL7 (Dell)
+    "ST1(0000NM0(18|20)G|[2468]000NM00[012]J)-.*",
+    "", "",
+    "-v 1,raw24/raw32 -v 7,raw24/raw32 "
+    "-v 18,raw48,Head_Health "
+    "-v 188,raw16 "
+    "-v 200,raw48,Pressure_Limit "
+    "-v 240,msec24hour32"
+  },
+  { "Seagate Exos X20", // tested with ST20000NM007D-3DJ103/SN01, .../SN03
+    "ST(18|20)000NM00[0347]D-.*",
+    "", "",
+    "-v 1,raw24/raw32 -v 7,raw24/raw32 "
+    "-v 18,raw48,Head_Health "
+    "-v 188,raw16 "
+    "-v 200,raw48,Pressure_Limit "
+    "-v 240,msec24hour32"
+  },
+  { "Seagate Exos X24", // tested with ST24000NM002H-3KS133/SE03,
+      // ST24000NM000C-3WD103/SN02 (30TB HAMR recertified to 24TB CMR ?)
+    "ST((12|16|20|24)000NM002H|24000NM000C)-.*",
+    "", "",
+    "-v 1,raw24/raw32 -v 7,raw24/raw32 "
+    "-v 18,raw48,Head_Health "
+    "-v 188,raw16 "
+    "-v 200,raw48,Pressure_Limit "
+    "-v 240,msec24hour32"
+  },
   // new models: ST8000VN0002, ST6000VN0021, ST4000VN000
   //             ST8000VN0012, ST6000VN0031, ST4000VN003
   // tested with ST8000VN0002-1Z8112/ZA13YGNF
@@ -4854,7 +4897,9 @@ const drive_settings builtin_knowndrives[] = {
     "WDC WDBNCE(250|500|00[124])0PNC(-.*)?|" // Blue 3D
     "WDC  ?WDS((120|240|250|480|500)G|[124]00T)(1B|2B|1G|2G|1R)0[AB](-.*)?|"
       // *B* = Blue, *G* = Green, *2B* = Blue 3D NAND, *1R* = Red SA500
-    "WD Blue SA510 2.5 1000GB", // tested with WD Blue SA510 2.5 1000GB/52008100
+    "WD Blue SA510 2.5 1000GB|" // tested with WD Blue SA510 2.5 1000GB/52008100
+    "SanDisk Portable SSD", // tested with SanDisk Portable SSD/UM5004RL
+                            // (Sandisk SDSSDE30-2T00, 0x0781:0x55b0)
     "", "",
   //"-v 5,raw16(raw16),Reallocated_Sector_Ct " // Reassigned Block Count
   //"-v 9,raw24(raw8),Power_On_Hours "
@@ -5744,9 +5789,10 @@ const drive_settings builtin_knowndrives[] = {
     "" // unsupported
   },
   { "USB: ; Genesys Logic",
-    "0x05e3:0x(0718|073[15]|2013)", // 0x0718(0x0041): Requires '-T permissive',
+    "0x05e3:0x(07(18|3[15]|61)|2013)", // 0x0718(0x0041): Requires '-T permissive',
     "", // 0x0731: Genesys Logic GL3310, Chieftec USB 3.0 2.5" case, 0x0735(0x1003): ?,
-    "", // 0x2013(0x0100): Sharkoon QuickPort Duo Clone USB 3.1 Type-C
+    "", // 0x0761(0x2402): Other World Computing SATA Adapter PA023U3,
+        // 0x2013(0x0100): Sharkoon QuickPort Duo Clone USB 3.1 Type-C
     "-d sat"
   },
   // Micron
@@ -5797,11 +5843,17 @@ const drive_settings builtin_knowndrives[] = {
     "-d sat"
   },
   // SanDisk
-  { "USB: SanDisk SDCZ80 Flash Drive; Fujitsu", // ATA ID: SanDisk pSSD
-    "0x0781:0x558[08]",
-    "",
+  { "USB: SanDisk; ",
+    "0x0781:0x55(8[08]|b0)", // 0x5580: SanDisk SDCZ80 (SanDisk pSSD)
+    "", // 0x55b0: Sandisk SDSSDE30-2T00 (SanDisk Portable SSD)
     "",
     "-d sat"
+  },
+  { "USB: SanDisk Extreme; ASMedia ASM2362",
+    "0x0781:0x55ae", // SanDisk Extreme (Western Digital SN580E 1TB)
+    "", // 0x3008
+    "",
+    "-d sntasmedia"
   },
   // Freecom
   { "USB: ; Innostor IS631", // No Name USB3->SATA Enclosure
@@ -5936,6 +5988,12 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "-d sat,12"
   },
+  { "USB: Kingston; ",
+    "0x0951:0x1780", // XS1000
+    "", // 0x100
+    "",
+    "-d sat"
+  },
   // Apricorn
   { "USB: Apricorn; ",
     "0x0984:0x0(040|301|320)", // 0x0040: Apricorn SATA Wire
@@ -5983,6 +6041,12 @@ const drive_settings builtin_knowndrives[] = {
     "-d sat"
   },
   // Realtek
+  { "USB: ; Realtek RTL9201", // USB->SATA
+    "0x0bda:0x9201",
+    "", // 0xf200
+    "",
+    "-d sat"
+  },
   { "USB: ; Realtek RTL9210", // USB->PCIe (NVMe)
     "0x0bda:0x9210",
     "", // 0x2100
@@ -6105,6 +6169,13 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "-d sat"
   },
+  // Apacer
+  { "USB: Apacer; ",
+    "0x1005:0xc004", // Apacer AC633
+    "",
+    "",
+    "-d sat"
+  },
   // iRiver
   { "USB: iRiver iHP-120/140 MP3 Player; Cypress",
     "0x1006:0x3002",
@@ -6152,6 +6223,13 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "",
     "-d usbcypress"
+  },
+  // 0x1352 (?)
+  { "USB: ; ",
+    "0x1352:0xa006", // TerraMaster D2-320
+    "", // 0x0100
+    "",
+    "-d sat"
   },
   // Initio
   { "USB: ; Initio",
@@ -6205,7 +6283,7 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "-d sat"
   },
-  { "USB: ; JMicron JM562", // USB2/3+eSATA->2xSATA, USB2/3->3xSATA (RAID0/1)
+  { "USB: ; JMicron JMS562", // USB2/3+eSATA->2xSATA, USB2/3->3xSATA (RAID0/1)
     "0x152d:0x0562",
     "", // 0x0106, Fantec QB-X2US3R (ticket #966)
     "", // only ATA IDENTIFY works, SMART commands don't work
@@ -6350,9 +6428,9 @@ const drive_settings builtin_knowndrives[] = {
     "-d sat"
   },
   { "USB: ; JMicron",
-    "0x152d:0x(578e|b567)",
-    "", // 0x578e(0x1402): Intenso Memory Center
-    "", // 0xb567: Fantec AD-U3S
+    "0x152d:0x(578e|a5(78|80)|b567)",
+    "", // 0x578e(0x1402): Intenso Memory Center, 0xa578: Sabrent EC-DFLT,
+    "", // 0xa580(0x003): CENMATE 2 Bay RAID Enclosure, 0xb567: Fantec AD-U3S
     "-d sat"
   },
   { "USB: ; JMicron JMS561", // USB3->2xSATA
@@ -6570,10 +6648,24 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "-d sat"
   },
+  // 0x235c (?)
+  { "USB: ; ",
+    "0x235c:0xa006", // Terramaster D4-320
+    "", // 0x0100
+    "",
+    "-d sat"
+  },
   // Norelsys
   { "USB: ; ", // USB 3.0
     "0x2537:0x106[68]", // 0x1066: Orico 2599US3, 0x1068: Fantec ER-35U3
     "", // 0x0100
+    "",
+    "-d sat"
+  },
+  // 0x2bdf (?)
+  { "USB: ; ",
+    "0x2bdf:0x0580", // HIKSEMI
+    "", // 0x1601
     "",
     "-d sat"
   },
@@ -6584,6 +6676,7 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "-d sat"
   },
+  // 0x2eb9 (?): See Realtek (0x0bda) above
   // KIOXIA (?)
   { "USB: ; ", // KIOXIA EXCERIA PLUS
     "0x30de:0x1000",
@@ -6591,11 +6684,10 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "-d sntjmicron"
   },
-  // 0x2eb9 (?): See Realtek (0x0bda) above
-  // Power Quotient International
-  { "USB: PQI H560; ",
-    "0x3538:0x0902",
-    "", // 0x0000
+  // 0x31db (?)
+  { "USB: ; ",
+    "0x31db:0x0716", // DockCase 10s PLP 2.5" Enclosure
+    "", // 0x0148
     "",
     "-d sat"
   },
@@ -6605,6 +6697,12 @@ const drive_settings builtin_knowndrives[] = {
     "",
     "",
     "-d usbsunplus"
+  },
+  { "USB: PQI H560; ",
+    "0x3538:0x0902",
+    "", // 0x0000
+    "",
+    "-d sat"
   },
   // Sharkoon
   { "USB: Sharkoon QuickPort XT USB 3.0; ",
@@ -6621,7 +6719,7 @@ const drive_settings builtin_knowndrives[] = {
     "-d usbjmicron"
   },
   { "USB: Hitachi Touro; ",
-    "0x4971:0x101[45]", // 14=1TB, 15=2TB
+    "0x4971:0x101[345]", // 14=1TB, 15=2TB, 13=Touro Desk Pro 3TB
     "", // 0x0000
     "",
     "-d sat" // ATA output registers missing
