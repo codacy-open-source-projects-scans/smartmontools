@@ -1300,6 +1300,11 @@ disk attributes).
 .Sp
 [NVMe] For NVMe devices the attributes are obtained from the SMART/Health
 Information log.
+.br
+[NEW EXPERIMENTAL SMARTCTL 7.5 FEATURE]
+If the device indicates support for SMART/Health Information per namespace,
+the id of the namespace addressed by the device name is used, otherwise
+the id of the broadcast namespace.
 .\" %ENDIF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .TP
 .B \-f FORMAT, \-\-format=FORMAT
@@ -1476,12 +1481,9 @@ test terminology).
 \- [NVMe: NEW EXPERIMENTAL SMARTCTL 7.4 FEATURE]
 prints the NVMe self-test log.
 .br
-[NEW EXPERIMENTAL SMARTCTL 7.5 FEATURE]
-If the device does not support multiple namespaces, the broadcast namespace
-is always used to read the self-test log and to start the tests (see
-\*(Aq\-t TEST\*(Aq below).
-This is because some single namespace devices return failure if namespace 1
-is used to address self-tests.
+[NEW EXPERIMENTAL SMARTCTL 7.5 FIX]
+This always uses the broadcast namespace.
+Self-test results from individual namespaces appear in this single log.
 .\" %ENDIF OS Darwin FreeBSD Linux NetBSD Windows Cygwin
 .Sp
 .I xselftest[,NUM][,selftest]

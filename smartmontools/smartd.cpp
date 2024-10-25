@@ -2784,7 +2784,7 @@ static int NVMeDeviceScan(dev_config & cfg, dev_state & state, nvme_device * nvm
   // Format device id string for warning emails
   char nsstr[32] = "", capstr[32] = "";
   unsigned nsid = nvmedev->get_nsid();
-  if (nsid != 0xffffffff)
+  if (nsid != nvme_broadcast_nsid)
     snprintf(nsstr, sizeof(nsstr), ", NSID:%u", nsid);
   uint64_t capacity = le128_to_uint64(id_ctrl.tnvmcap);
   if (capacity)
@@ -2804,8 +2804,9 @@ static int NVMeDeviceScan(dev_config & cfg, dev_state & state, nvme_device * nvm
   }
 
   // Read SMART/Health log
+  // TODO: Support per namespace SMART/Health log
   nvme_smart_log smart_log;
-  if (!nvme_read_smart_log(nvmedev, smart_log)) {
+  if (!nvme_read_smart_log(nvmedev, nvme_broadcast_nsid, smart_log)) {
     PrintOut(LOG_INFO, "Device: %s, failed to read NVMe SMART/Health Information\n", name);
     CloseDevice(nvmedev, name);
     return 2;
@@ -2851,7 +2852,7 @@ static int NVMeDeviceScan(dev_config & cfg, dev_state & state, nvme_device * nvm
     std::replace_if(model, model+strlen(model), not_allowed_in_filename, '_');
     std::replace_if(serial, serial+strlen(serial), not_allowed_in_filename, '_');
     nsstr[0] = 0;
-    if (nsid != 0xffffffff)
+    if (nsid != nvme_broadcast_nsid)
       snprintf(nsstr, sizeof(nsstr), "-n%u", nsid);
     cfg.state_file = strprintf("%s%s-%s%s.nvme.state", state_path_prefix.c_str(), model, serial, nsstr);
     // Read previous state
@@ -3890,8 +3891,9 @@ static int NVMeCheckDevice(const dev_config & cfg, dev_state & state, nvme_devic
   const char * name = cfg.name.c_str();
 
   // Read SMART/Health log
+  // TODO: Support per namespace SMART/Health log
   nvme_smart_log smart_log;
-  if (!nvme_read_smart_log(nvmedev, smart_log)) {
+  if (!nvme_read_smart_log(nvmedev, nvme_broadcast_nsid, smart_log)) {
       CloseDevice(nvmedev, name);
       PrintOut(LOG_INFO, "Device: %s, failed to read NVMe SMART/Health Information\n", name);
       MailWarning(cfg, state, 6, "Device: %s, failed to read NVMe SMART/Health Information", name);
