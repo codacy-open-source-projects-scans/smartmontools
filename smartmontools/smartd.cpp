@@ -2,7 +2,7 @@
  * Home page of code is: https://www.smartmontools.org
  *
  * Copyright (C) 2002-11 Bruce Allen
- * Copyright (C) 2008-24 Christian Franke
+ * Copyright (C) 2008-25 Christian Franke
  * Copyright (C) 2000    Michael Cornwell <cornwell@acm.org>
  * Copyright (C) 2008    Oliver Bock <brevilo@users.sourceforge.net>
  *
@@ -103,30 +103,18 @@ static void set_signal_if_not_ignored(int sig, signal_handler_type handler)
   // signal() emulation
   daemon_signal(sig, handler);
 
-#elif defined(HAVE_SIGACTION)
-  // SVr4, POSIX.1-2001, POSIX.1-2008
+#else
+  // SVr4, POSIX.1-2001, ..., POSIX.1-2024
   struct sigaction sa;
   sa.sa_handler = SIG_DFL;
   sigaction(sig, (struct sigaction *)0, &sa);
   if (sa.sa_handler == SIG_IGN)
     return;
 
-  memset(&sa, 0, sizeof(sa));
+  sa = {};
   sa.sa_handler = handler;
   sa.sa_flags = SA_RESTART; // BSD signal() semantics
   sigaction(sig, &sa, (struct sigaction *)0);
-
-#elif defined(HAVE_SIGSET)
-  // SVr4, POSIX.1-2001, obsoleted in POSIX.1-2008
-  if (sigset(sig, handler) == SIG_IGN)
-    sigset(sig, SIG_IGN);
-
-#else
-  // POSIX.1-2001, POSIX.1-2008, C89, C99, undefined semantics.
-  // Important: BSD semantics is required.  Traditional signal()
-  // resets the handler to SIG_DFL after the first signal is caught.
-  if (signal(sig, handler) == SIG_IGN)
-    signal(sig, SIG_IGN);
 #endif
 }
 
@@ -399,6 +387,7 @@ struct dev_config
   bool ignore{};                          // Ignore this entry
   bool id_is_unique{};                    // True if dev_idinfo is unique (includes S/N or WWN)
   bool smartcheck{};                      // Check SMART status
+  uint8_t smartcheck_nvme{};              // Check these bits from NVMe Critical Warning byte
   bool usagefailed{};                     // Check for failed Usage Attributes
   bool prefail{};                         // Track changes in Prefail Attributes
   bool usage{};                           // Track changes in Usage Attributes
@@ -514,6 +503,10 @@ struct persistent_dev_state
 
   // NVMe only
   uint64_t nvme_err_log_entries{};
+
+  // NVMe SMART/Health information: only the fields avail_spare,
+  // percent_used and media_errors are persistent.
+  nvme_smart_log nvme_smartval{};
 };
 
 /// Non-persistent state data for a device.
@@ -539,8 +532,8 @@ struct temp_dev_state
   int powerskipcnt{};                     // Number of checks skipped due to idle or standby mode
   int lastpowermodeskipped{};             // the last power mode that was skipped
 
-  bool attrlog_dirty{};                   // true if persistent part has new attr values that
-                                          // need to be written to attrlog
+  int attrlog_valid{};                    // nonzero if data is valid for protocol specific
+                                          // attribute log: 1=ATA, 2=SCSI, 3=NVMe
 
   // SCSI ONLY
   // TODO: change to bool
@@ -629,6 +622,21 @@ void dev_state::update_temp_state()
   }
 }
 
+// Convert 128 bit LE integer to uint64_t or its max value on overflow.
+static uint64_t le128_to_uint64(const unsigned char (& val)[16])
+{
+  if (sg_get_unaligned_le64(val + 8))
+    return ~(uint64_t)0;
+  return sg_get_unaligned_le64(val);
+}
+
+// Convert uint64_t to 128 bit LE integer
+static void uint64_to_le128(unsigned char (& destval)[16], uint64_t srcval)
+{
+  sg_put_unaligned_le64(0, destval + 8);
+  sg_put_unaligned_le64(srcval, destval);
+}
+
 // Parse a line from a state file.
 static bool parse_dev_state_line(const char * line, persistent_dev_state & state)
 {
@@ -657,11 +665,14 @@ static bool parse_dev_state_line(const char * line, persistent_dev_state & state
        ")" // 18)
       ")" // 16)
      "|(nvme-err-log-entries)" // (24)
+     "|(nvme-available-spare)" // (25)
+     "|(nvme-percentage-used)" // (26)
+     "|(nvme-media-errors)" // (27)
      ")" // 1)
-     " *= *([0-9]+)[ \n]*$" // (25)
+     " *= *([0-9]+)[ \n]*$" // (28)
   );
 
-  const int nmatch = 1+25;
+  constexpr int nmatch = 1+28;
   regular_expression::match_range match[nmatch];
   if (!regex.execute(line, nmatch, match))
     return false;
@@ -719,8 +730,14 @@ static bool parse_dev_state_line(const char * line, persistent_dev_state & state
     else
       return false;
   }
-  else if (match[m+7].rm_so >= 0)
+  else if (match[m+=7].rm_so >= 0)
     state.nvme_err_log_entries = val;
+  else if (match[++m].rm_so >= 0)
+    state.nvme_smartval.avail_spare = val;
+  else if (match[++m].rm_so >= 0)
+    state.nvme_smartval.percent_used = val;
+  else if (match[++m].rm_so >= 0)
+    uint64_to_le128(state.nvme_smartval.media_errors, val);
   else
     return false;
   return true;
@@ -827,32 +844,24 @@ static bool write_dev_state(const char * path, const persistent_dev_state & stat
 
   // NVMe only
   write_dev_state_line(f, "nvme-err-log-entries", state.nvme_err_log_entries);
+  write_dev_state_line(f, "nvme-available-spare", state.nvme_smartval.avail_spare);
+  write_dev_state_line(f, "nvme-percentage-used", state.nvme_smartval.percent_used);
+  write_dev_state_line(f, "nvme-media-errors", le128_to_uint64(state.nvme_smartval.media_errors));
 
   return true;
 }
 
-// Write to the attrlog file
-static bool write_dev_attrlog(const char * path, const dev_state & state)
+static void write_ata_attrlog(FILE * f, const dev_state & state)
 {
-  stdio_file f(path, "a");
-  if (!f) {
-    pout("Cannot create attribute log file \"%s\"\n", path);
-    return false;
-  }
-
-  
-  time_t now = time(nullptr);
-  struct tm tmbuf, * tms = time_to_tm_local(&tmbuf, now);
-  fprintf(f, "%d-%02d-%02d %02d:%02d:%02d;",
-             1900+tms->tm_year, 1+tms->tm_mon, tms->tm_mday,
-             tms->tm_hour, tms->tm_min, tms->tm_sec);
-  // ATA ONLY
   for (const auto & pa : state.ata_attributes) {
     if (!pa.id)
       continue;
     fprintf(f, "\t%d;%d;%" PRIu64 ";", pa.id, pa.val, pa.raw);
   }
-  // SCSI ONLY
+}
+
+static void write_scsi_attrlog(FILE * f, const dev_state & state)
+{
   const struct scsiErrorCounter * ecp;
   const char * pageNames[3] = {"read", "write", "verify"};
   for (int k = 0; k < 3; ++k) {
@@ -879,7 +888,67 @@ static bool write_dev_attrlog(const char * path, const dev_state & state)
   // write SCSI current temperature if it is monitored
   if (state.temperature)
     fprintf(f, "\ttemperature;%d;", state.temperature);
-  // end of line
+}
+
+static void write_nvme_attrlog(FILE * f, const dev_state & state)
+{
+  const nvme_smart_log & s = state.nvme_smartval;
+  // Names similar to smartctl JSON output with '-' instead of '_'
+  fprintf(f,
+    "\tcritical-warning;%d;"
+    "\ttemperature;%d;"
+    "\tavailable-spare;%d;"
+    "\tavailable-spare-threshold;%d;"
+    "\tpercentage-used;%d;"
+    "\tdata-units-read;%" PRIu64 ";"
+    "\tdata-units-written;%" PRIu64 ";"
+    "\thost-reads;%" PRIu64 ";"
+    "\thost-writes;%" PRIu64 ";"
+    "\tcontroller-busy-time;%" PRIu64 ";"
+    "\tpower-cycles;%" PRIu64 ";"
+    "\tpower-on-hours;%" PRIu64 ";"
+    "\tunsafe-shutdowns;%" PRIu64 ";"
+    "\tmedia-errors;%" PRIu64 ";"
+    "\tnum-err-log-entries;%" PRIu64 ";",
+    s.critical_warning,
+    (int)sg_get_unaligned_le16(s.temperature) - 273,
+    s.avail_spare,
+    s.spare_thresh,
+    s.percent_used,
+    le128_to_uint64(s.data_units_read),
+    le128_to_uint64(s.data_units_written),
+    le128_to_uint64(s.host_reads),
+    le128_to_uint64(s.host_writes),
+    le128_to_uint64(s.ctrl_busy_time),
+    le128_to_uint64(s.power_cycles),
+    le128_to_uint64(s.power_on_hours),
+    le128_to_uint64(s.unsafe_shutdowns),
+    le128_to_uint64(s.media_errors),
+    le128_to_uint64(s.num_err_log_entries)
+  );
+}
+
+// Write to the attrlog file
+static bool write_dev_attrlog(const char * path, const dev_state & state)
+{
+  stdio_file f(path, "a");
+  if (!f) {
+    pout("Cannot create attribute log file \"%s\"\n", path);
+    return false;
+  }
+
+  time_t now = time(nullptr);
+  struct tm tmbuf, * tms = time_to_tm_local(&tmbuf, now);
+  fprintf(f, "%d-%02d-%02d %02d:%02d:%02d;",
+             1900+tms->tm_year, 1+tms->tm_mon, tms->tm_mday,
+             tms->tm_hour, tms->tm_min, tms->tm_sec);
+
+  switch (state.attrlog_valid) {
+    case 1: write_ata_attrlog(f, state); break;
+    case 2: write_scsi_attrlog(f, state); break;
+    case 3: write_nvme_attrlog(f, state); break;
+  }
+
   fprintf(f, "\n");
   return true;
 }
@@ -915,10 +984,13 @@ static void write_all_dev_attrlogs(const dev_config_vector & configs,
     if (cfg.attrlog_file.empty())
       continue;
     dev_state & state = states[i];
-    if (state.attrlog_dirty) {
-      write_dev_attrlog(cfg.attrlog_file.c_str(), state);
-      state.attrlog_dirty = false;
-    }
+    if (!state.attrlog_valid)
+      continue;
+    write_dev_attrlog(cfg.attrlog_file.c_str(), state);
+    state.attrlog_valid = 0;
+    if (debugmode)
+      PrintOut(LOG_INFO, "Device: %s, attribute log written to %s\n",
+               cfg.name.c_str(), cfg.attrlog_file.c_str());
   }
 }
 
@@ -1552,6 +1624,7 @@ static void Directives()
            "  -S VAL  Enable/disable attribute autosave (on/off)\n"
            "  -n MODE No check if: never, sleep[,N][,q], standby[,N][,q], idle[,N][,q]\n"
            "  -H      Monitor SMART Health Status, report if failed\n"
+           "  -H MASK Monitor specific NVMe Critical Warning bits\n"
            "  -s REG  Do Self-Test at time(s) given by regular expression REG\n"
            "  -l TYPE Monitor SMART log or self-test status:\n"
            "          error, selftest, xerror, offlinests[,ns], selfteststs[,ns]\n"
@@ -2681,20 +2754,6 @@ static int SCSIDeviceScan(dev_config & cfg, dev_state & state, scsi_device * scs
   return 0;
 }
 
-// Convert 128 bit LE integer to uint64_t or its max value on overflow.
-static uint64_t le128_to_uint64(const unsigned char (& val)[16])
-{
-  for (int i = 8; i < 16; i++) {
-    if (val[i])
-      return ~(uint64_t)0;
-  }
-  uint64_t lo = val[7];
-  for (int i = 7-1; i >= 0; i--) {
-    lo <<= 8; lo += val[i];
-  }
-  return lo;
-}
-
 // Check the NVMe Error Information log for device related errors.
 static bool check_nvme_error_log(const dev_config & cfg, dev_state & state, nvme_device * nvmedev,
   uint64_t newcnt = 0)
@@ -2818,7 +2877,7 @@ static int NVMeDeviceScan(dev_config & cfg, dev_state & state, nvme_device * nvm
 
   // Read SMART/Health log
   // TODO: Support per namespace SMART/Health log
-  nvme_smart_log smart_log;
+  nvme_smart_log & smart_log = state.nvme_smartval;
   if (!nvme_read_smart_log(nvmedev, nvme_broadcast_nsid, smart_log)) {
     PrintOut(LOG_INFO, "Device: %s, failed to read NVMe SMART/Health Information\n", name);
     CloseDevice(nvmedev, name);
@@ -2866,9 +2925,11 @@ static int NVMeDeviceScan(dev_config & cfg, dev_state & state, nvme_device * nvm
   }
 
   // If no supported tests selected, return
-  if (!(   cfg.smartcheck || cfg.errorlog || cfg.xerrorlog
-        || cfg.selftest   || cfg.selfteststs || !cfg.test_regex.empty()
-        || cfg.tempdiff   || cfg.tempinfo || cfg.tempcrit )            ) {
+  if (!(   cfg.smartcheck_nvme
+        || cfg.prefail  || cfg.usage || cfg.usagefailed
+        || cfg.errorlog || cfg.xerrorlog
+        || cfg.selftest || cfg.selfteststs || !cfg.test_regex.empty()
+        || cfg.tempdiff || cfg.tempinfo || cfg.tempcrit              )) {
     CloseDevice(nvmedev, name);
     return 3;
   }
@@ -2885,17 +2946,21 @@ static int NVMeDeviceScan(dev_config & cfg, dev_state & state, nvme_device * nvm
 
   CloseDevice(nvmedev, name);
 
-  if (!state_path_prefix.empty()) {
+  if (!state_path_prefix.empty() || !attrlog_path_prefix.empty()) {
     // Build file name for state file
     std::replace_if(model, model+strlen(model), not_allowed_in_filename, '_');
     std::replace_if(serial, serial+strlen(serial), not_allowed_in_filename, '_');
     nsstr[0] = 0;
     if (nsid != nvme_broadcast_nsid)
       snprintf(nsstr, sizeof(nsstr), "-n%u", nsid);
-    cfg.state_file = strprintf("%s%s-%s%s.nvme.state", state_path_prefix.c_str(), model, serial, nsstr);
-    // Read previous state
-    if (read_dev_state(cfg.state_file.c_str(), state))
-      PrintOut(LOG_INFO, "Device: %s, state read from %s\n", name, cfg.state_file.c_str());
+    if (!state_path_prefix.empty()) {
+      cfg.state_file = strprintf("%s%s-%s%s.nvme.state", state_path_prefix.c_str(), model, serial, nsstr);
+      // Read previous state
+      if (read_dev_state(cfg.state_file.c_str(), state))
+        PrintOut(LOG_INFO, "Device: %s, state read from %s\n", name, cfg.state_file.c_str());
+    }
+    if (!attrlog_path_prefix.empty())
+      cfg.attrlog_file = strprintf("%s%s-%s%s.nvme.csv", attrlog_path_prefix.c_str(), model, serial, nsstr);
   }
 
   finish_device_scan(cfg, state);
@@ -3072,7 +3137,7 @@ static char next_scheduled_test(const dev_config & cfg, dev_state & state, time_
 
   // Check interval [state.scheduled_test_next_check, now] for scheduled tests
   char testtype = 0;
-  time_t testtime = 0; int testhour = 0;
+  time_t testtime = 0;
   int maxtest = num_test_types-1;
 
   for (time_t t = state.scheduled_test_next_check; ; ) {
@@ -3110,7 +3175,7 @@ static char next_scheduled_test(const dev_config & cfg, dev_state & state, time_
         if (cfg.test_regex.full_match(pattern)) {
           // Test found
           testtype = pattern[0];
-          testtime = t; testhour = tms->tm_hour;
+          testtime = t;
           // Limit further matches to higher priority self-tests
           maxtest = j-1;
           break;
@@ -3135,7 +3200,7 @@ static char next_scheduled_test(const dev_config & cfg, dev_state & state, time_
   if (testtype) {
     state.must_write = true;
     // Tell user if an old test was found.
-    if (!usetime && !(testhour == tmnow->tm_hour && testtime + 3600 > now)) {
+    if (!usetime && (testtime / 3600) < (now / 3600)) {
       char datebuf[DATEANDEPOCHLEN]; dateandtimezoneepoch(datebuf, testtime);
       PrintOut(LOG_INFO, "Device: %s, old test of type %c not run at %s, starting now.\n",
         cfg.name.c_str(), testtype, datebuf);
@@ -3778,7 +3843,7 @@ static int ATACheckDevice(const dev_config & cfg, dev_state & state, ata_device 
       // Save the new values for the next time around
       state.smartval = curval;
       state.update_persistent_state();
-      state.attrlog_dirty = true;
+      state.attrlog_valid = 1; // ATA attributes valid
     }
   }
   state.offline_started = state.selftest_started = false;
@@ -3883,7 +3948,14 @@ static int SCSICheckDevice(const dev_config & cfg, dev_state & state, scsi_devic
     if (testtype)
       DoSCSISelfTest(cfg, state, scsidev, testtype);
   }
+
   if (!cfg.attrlog_file.empty()){
+    state.scsi_error_counters[0] = {};
+    state.scsi_error_counters[1] = {};
+    state.scsi_error_counters[2] = {};
+    state.scsi_nonmedium_error = {};
+    bool found = false;
+
     // saving error counters to state
     uint8_t tBuf[252];
     if (state.ReadECounterPageSupported && (0 == scsiLogSense(scsidev,
@@ -3891,32 +3963,59 @@ static int SCSICheckDevice(const dev_config & cfg, dev_state & state, scsi_devic
       scsiDecodeErrCounterPage(tBuf, &state.scsi_error_counters[0].errCounter,
                                scsiLogRespLen);
       state.scsi_error_counters[0].found=1;
+      found = true;
     }
     if (state.WriteECounterPageSupported && (0 == scsiLogSense(scsidev,
       WRITE_ERROR_COUNTER_LPAGE, 0, tBuf, sizeof(tBuf), 0))) {
       scsiDecodeErrCounterPage(tBuf, &state.scsi_error_counters[1].errCounter,
                                scsiLogRespLen);
       state.scsi_error_counters[1].found=1;
+      found = true;
     }
     if (state.VerifyECounterPageSupported && (0 == scsiLogSense(scsidev,
       VERIFY_ERROR_COUNTER_LPAGE, 0, tBuf, sizeof(tBuf), 0))) {
       scsiDecodeErrCounterPage(tBuf, &state.scsi_error_counters[2].errCounter,
                                scsiLogRespLen);
       state.scsi_error_counters[2].found=1;
+      found = true;
     }
     if (state.NonMediumErrorPageSupported && (0 == scsiLogSense(scsidev,
       NON_MEDIUM_ERROR_LPAGE, 0, tBuf, sizeof(tBuf), 0))) {
       scsiDecodeNonMediumErrPage(tBuf, &state.scsi_nonmedium_error.nme,
                                  scsiLogRespLen);
       state.scsi_nonmedium_error.found=1;
+      found = true;
     }
     // store temperature if not done by CheckTemperature() above
     if (!(cfg.tempdiff || cfg.tempinfo || cfg.tempcrit))
       state.temperature = currenttemp;
+
+    if (found || state.temperature)
+      state.attrlog_valid = 2; // SCSI attributes valid
   }
+
   CloseDevice(scsidev, name);
-  state.attrlog_dirty = true;
   return 0;
+}
+
+// Log changes of a NVMe SMART/Health value
+static void log_nvme_smart_change(const dev_config & cfg, dev_state & state,
+  const char * valname, uint64_t oldval, uint64_t newval,
+  bool critical, bool info = true)
+{
+  if (!(newval != oldval && (critical || info)))
+    return;
+
+  std::string msg = strprintf("Device: %s, SMART/Health value: %s changed "
+                              "from %" PRIu64 " to %" PRIu64,
+                              cfg.name.c_str(), valname, oldval, newval);
+  if (!critical)
+    PrintOut(LOG_INFO, "%s\n", msg.c_str());
+  else {
+    PrintOut(LOG_CRIT, "%s\n", msg.c_str());
+    MailWarning(cfg, state, 2, "%s", msg.c_str());
+  }
+  state.must_write = true;
 }
 
 // Log NVMe self-test execution status changes
@@ -4078,29 +4177,53 @@ static int NVMeCheckDevice(const dev_config & cfg, dev_state & state, nvme_devic
   }
 
   // Check Critical Warning bits
-  if (cfg.smartcheck && smart_log.critical_warning) {
-    unsigned char w = smart_log.critical_warning;
+  uint8_t w = smart_log.critical_warning, wm = w & cfg.smartcheck_nvme;
+  if (wm) {
     std::string msg;
-    static const char * const wnames[] =
-      {"LowSpare", "Temperature", "Reliability", "R/O", "VolMemBackup"};
+    static const char * const wnames[8] = {
+      "LowSpare", "Temperature", "Reliability", "R/O",
+      "VolMemBackup", "PersistMem", "Bit_6", "Bit_7"
+    };
 
     for (unsigned b = 0, cnt = 0; b < 8 ; b++) {
-      if (!(w & (1 << b)))
+      uint8_t mask = 1 << b;
+      if (!(w & mask))
         continue;
       if (cnt)
         msg += ", ";
       if (++cnt > 3) {
         msg += "..."; break;
       }
-      if (b >= sizeof(wnames)/sizeof(wnames[0])) {
-        msg += "*Unknown*"; break;
-      }
+      if (!(wm & mask))
+         msg += '[';
       msg += wnames[b];
+      if (!(wm & mask))
+         msg += ']';
     }
 
     PrintOut(LOG_CRIT, "Device: %s, Critical Warning (0x%02x): %s\n", name, w, msg.c_str());
     MailWarning(cfg, state, 1, "Device: %s, Critical Warning (0x%02x): %s", name, w, msg.c_str());
     state.must_write = true;
+  }
+
+  // Check some SMART/Health values
+  // Names similar to smartctl plaintext output
+  if (cfg.prefail) {
+    log_nvme_smart_change(cfg, state, "Available Spare",
+      state.nvme_smartval.avail_spare, smart_log.avail_spare,
+      (   smart_log.avail_spare < smart_log.spare_thresh
+       && smart_log.spare_thresh <= 100 /* 101-255: "reserved" */));
+  }
+
+  if (cfg.usage || cfg.usagefailed) {
+    log_nvme_smart_change(cfg, state, "Percentage Used",
+      state.nvme_smartval.percent_used, smart_log.percent_used,
+      (cfg.usagefailed && smart_log.percent_used > 95), cfg.usage);
+
+    uint64_t old_me = le128_to_uint64(state.nvme_smartval.media_errors);
+    uint64_t new_me = le128_to_uint64(smart_log.media_errors);
+    log_nvme_smart_change(cfg, state, "Media and Data Integrity Errors",
+      old_me, new_me, (cfg.usagefailed && new_me > old_me), cfg.usage);
   }
 
   // Check temperature limits
@@ -4161,7 +4284,10 @@ static int NVMeCheckDevice(const dev_config & cfg, dev_state & state, nvme_devic
     start_nvme_self_test(cfg, state, nvmedev, testtype, self_test_log);
 
   CloseDevice(nvmedev, name);
-  state.attrlog_dirty = true;
+
+  // Preserve new SMART/Health info for state file and attribute log
+  state.nvme_smartval = smart_log;
+  state.attrlog_valid = 3; // NVMe attributes valid
   return 0;
 }
 
@@ -4315,7 +4441,7 @@ static void ToggleDebugMode()
 }
 #endif
 
-time_t calc_next_wakeuptime(time_t wakeuptime, time_t timenow, int ct)
+static time_t calc_next_wakeuptime(time_t wakeuptime, time_t timenow, int ct)
 {
   if (timenow < wakeuptime)
     return wakeuptime;
@@ -4544,7 +4670,7 @@ static const char * strtok_dequote(const char * delimiters)
 // This function returns 1 if it has correctly parsed one token (and
 // any arguments), else zero if no tokens remain.  It returns -1 if an
 // error was encountered.
-static int ParseToken(char * token, dev_config & cfg, smart_devtype_list & scan_types)
+static int ParseToken(char * & token, dev_config & cfg, smart_devtype_list & scan_types)
 {
   char sym;
   const char * name = cfg.name.c_str();
@@ -4553,6 +4679,13 @@ static int ParseToken(char * token, dev_config & cfg, smart_devtype_list & scan_
   int badarg = 0;
   int missingarg = 0;
   const char *arg = 0;
+
+  // Get next token unless lookahead (from '-H') is available
+  if (!token) {
+    token = strtok(nullptr, delim);
+    if (!token)
+      return 0;
+  }
 
   // is the rest of the line a comment
   if (*token=='#')
@@ -4632,6 +4765,25 @@ static int ParseToken(char * token, dev_config & cfg, smart_devtype_list & scan_
   case 'H':
     // check SMART status
     cfg.smartcheck = true;
+    cfg.smartcheck_nvme = 0xff;
+    // Lookahead for optional NVMe bitmask
+    {
+      char * next_token = strtok(nullptr, delim);
+      if (!next_token)
+        return 0;
+      if (*next_token == '-') {
+        // Continue with next directive
+        token = next_token;
+        return 1;
+      }
+      arg = next_token;
+      unsigned u = ~0; int nc = -1;
+      sscanf(arg, "0x%x%n", &u, &nc);
+      if (nc == (int)strlen(arg) && u <= 0xff)
+        cfg.smartcheck_nvme = (uint8_t)u;
+      else
+        badarg = 1;
+    }
     break;
   case 'f':
     // check for failure of usage attributes
@@ -4693,6 +4845,7 @@ static int ParseToken(char * token, dev_config & cfg, smart_devtype_list & scan_
   case 'a':
     // monitor everything
     cfg.smartcheck = true;
+    cfg.smartcheck_nvme = 0xff;
     cfg.prefail = true;
     cfg.usagefailed = true;
     cfg.usage = true;
@@ -5028,6 +5181,8 @@ static int ParseToken(char * token, dev_config & cfg, smart_devtype_list & scan_
     return -1;
   }
 
+  // Continue with no lookahead
+  token = nullptr;
   return 1;
 }
 
@@ -5072,17 +5227,11 @@ static int ParseConfigLine(dev_config_vector & conf_entries, dev_config & defaul
   cfg.lineno = lineno;
 
   // parse tokens one at a time from the file.
-  while (char * token = strtok(nullptr, delim)) {
-    int rc = ParseToken(token, cfg, scan_types);
+  int rc;
+  for (char * token = nullptr; (rc = ParseToken(token, cfg, scan_types)) != 0; ) {
     if (rc < 0)
       // error found on the line
       return -2;
-
-    if (rc == 0)
-      // No tokens left
-      break;
-
-    // PrintOut(LOG_INFO,"Parsed token %s\n",token);
   }
 
   // Check for multiple -d TYPE directives
@@ -5107,6 +5256,7 @@ static int ParseConfigLine(dev_config_vector & conf_entries, dev_config & defaul
              cfg.name.c_str(), cfg.lineno, configfile);
     
     cfg.smartcheck = true;
+    cfg.smartcheck_nvme = 0xff;
     cfg.usagefailed = true;
     cfg.prefail = true;
     cfg.usage = true;
